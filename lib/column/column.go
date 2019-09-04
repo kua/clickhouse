@@ -18,7 +18,28 @@ type Column interface {
 	defaultValue() interface{}
 }
 
+func getAggregateFunctionType(chType string) (string, error) {
+	prefixLen := len("SimpleAggregateFunction(")
+	suffixLen := len(")")
+
+	if len(chType) > prefixLen+suffixLen {
+		nested := strings.Split(chType[prefixLen:len(chType)-suffixLen], ",")
+		if len(nested) == 2 {
+			return strings.TrimSpace(nested[1]), nil
+		}
+	}
+	return "", fmt.Errorf("invalid SimpleAggregateFunction column type: %s", chType)
+}
+
 func Factory(name, chType string, timezone *time.Location) (Column, error) {
+	if strings.HasPrefix(chType, "SimpleAggregateFunction") {
+		if nestedType, err := getAggregateFunctionType(chType); err != nil {
+			return nil, err
+		} else {
+			chType = nestedType
+		}
+	}
+
 	switch chType {
 	case "Int8":
 		return &Int8{
